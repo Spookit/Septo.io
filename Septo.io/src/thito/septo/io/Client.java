@@ -29,16 +29,30 @@ public class Client {
 			for (int i = index+1; i < paths.length; i++) b+="/"+paths[i];
 			return b;
 		}
-		public boolean is(String arg) {
+		public void setLast(String l) {
+			paths[paths.length - 1] = l;
+		}
+		public String[] getAll() {
+			return paths;
+		}
+		public boolean is(String... arg) {
 			String target = paths[index];
-			if (target.equalsIgnoreCase(arg)) {
-				index++;
-				return true;
+			for (String a : arg) {
+				if (a.equalsIgnoreCase(target)) {
+					index++;
+					return true;
+				}
 			}
 			return false;
 		}
 		public String next() {
 			return paths[index++];
+		}
+		public boolean has() {
+			return index < paths.length;
+		}
+		public boolean hasNext() {
+			return index + 1 < paths.length;
 		}
 		public void skip() {
 			index++;
