@@ -6,6 +6,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Reader;
 import java.io.StringReader;
+import java.net.URLDecoder;
 import java.util.Properties;
 import java.util.zip.Deflater;
 import java.util.zip.GZIPOutputStream;
@@ -15,8 +16,10 @@ public class Client {
 	public static class Paths {
 		private String[] paths;
 		private int index = 0;
-		public Paths(String...paths) {
+		private String query;
+		public Paths(String query,String...paths) {
 			this.paths = paths;
+			this.query = query;
 		}
 		public String get() {
 			return paths[index];
@@ -66,11 +69,15 @@ public class Client {
 		public boolean isEmpty() {
 			return paths.length == 0;
 		}
-		public Properties parseQuery() throws IOException {
+		public Properties parseQuery() {
 			Properties prop = new Properties();
-			String last = paths[paths.length-1];
-			last = last.substring(last.split("\\?",2)[0].length());
-			if (last.startsWith("?")) prop.load(new StringReader(last.substring(1).replace("&", "\n")));
+			String last = query;
+//			last = last.substring(last.split("\\?",2)[0].length());
+			try {
+				prop.load(new StringReader(last.replace("&", "\n")));
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
 			return prop;
 		}
 	}
@@ -91,6 +98,7 @@ public class Client {
 	private ContentType type;
 	private Method m;
 	private String content;
+	private String query;
 
 	private String[] paths;
 
@@ -107,7 +115,15 @@ public class Client {
 			String[] header = line.split("\\s+");
 			m = Method.valueOf(header[0]);
 			if (header[1].startsWith("/")) header[1] = header[1].substring(1);
-			paths = header[1].split("/");
+			String pathed = header[1];
+			pathed = URLDecoder.decode(pathed, "UTF-8");
+			paths = pathed.split("/");
+			if (paths.length > 0) {
+				String[] px = paths[paths.length-1].split("\\?",2);
+				if (px.length > 1) query = px[1];
+				paths[paths.length-1] = px[0];
+			}
+			if (query == null) query = "";
 			String[] client = header[2].split("/");
 			clientType = client[0];
 			version = Double.parseDouble(client[1]);
@@ -155,7 +171,7 @@ public class Client {
 	}
 	
 	public Paths createPaths() {
-		return new Paths(paths);
+		return new Paths(query,paths);
 	}
 	
 	public Properties deserialize(HttpField field) throws IOException {

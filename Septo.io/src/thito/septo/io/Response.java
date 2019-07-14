@@ -22,7 +22,7 @@ public class Response {
 	public Response(ResponseType response) {
 		resp = response;
 		clientType = "HTTP";
-		version = 1.1;
+		version = 1.0;
 	}
 
 	public ResponseType getType() {
@@ -70,6 +70,7 @@ public class Response {
 	}
 
 	public Response setRequestProperty(String key, Object value) {
+//		properties.setProperty(key, value+"");
 		properties.put(key, value);
 		return this;
 	}
@@ -83,7 +84,7 @@ public class Response {
 		b.append(getClientType() + "/" + getVersion() + " " + getType().code() + " " + getType().info());
 		if (!properties.isEmpty()) {
 			b.append("\r\n");
-			b.append(properties.entrySet().stream().map(s -> s.toString()).collect(Collectors.joining("\r\n")));
+			b.append(properties.entrySet().stream().map(s -> s.getKey()+": "+s.getValue()).collect(Collectors.joining("\r\n")));
 		}
 		b.append("\r\n\r\n");
 		if (content != null && !content.isEmpty()) {

@@ -2,38 +2,25 @@ package thito.septo.io;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.lang.Thread.UncaughtExceptionHandler;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 public class Server {
 
 	private UncaughtExceptionHandler handler = Thread.currentThread().getUncaughtExceptionHandler();
 	private Set<ClientListener> listeners = new HashSet<>();
 	private ServerSocket server;
-	private ExecutorService clientHandler;
 	private int port;
 
 	public Server(int port) {
 		this.port = port;
-		clientHandler = Executors.newCachedThreadPool(run -> {
-			Thread thread = new Thread(run);
-			thread.setUncaughtExceptionHandler(handler);
-			return thread;
-		});
-
 	}
 
 	public Server(ServerSocket server) {
-		clientHandler = Executors.newCachedThreadPool(run -> {
-			Thread thread = new Thread(run);
-			thread.setUncaughtExceptionHandler(handler);
-			return thread;
-		});
 		this.server = server;
 	}
 
@@ -80,26 +67,33 @@ public class Server {
 		port = server.getLocalPort();
 		while (!server.isClosed()) {
 			Socket client = server.accept();
-			clientHandler.submit(() -> {
-				try {
-					InputStream input = client.getInputStream();
-					Client header = new Client(input, client.getOutputStream());
-					listeners.forEach(l -> {
-						try {
-							l.accept(header);
-						} catch (IOException e) {
-							if (handler != null) {
-								handler.uncaughtException(Thread.currentThread(), e);
+			Thread th = new Thread("Client:"+client.getInetAddress()) {
+				public void run() {
+					try {
+						client.setKeepAlive(true);
+						InputStream input = client.getInputStream();
+						OutputStream output = client.getOutputStream();
+						Client header = new Client(input, output);
+						listeners.forEach(l -> {
+							try {
+								l.accept(header);
+							} catch (Throwable e) {
+								if (handler != null) {
+									handler.uncaughtException(Thread.currentThread(), e);
+								}
 							}
+						});
+						client.close();
+					} catch (Throwable e) {
+						if (handler != null) {
+							handler.uncaughtException(Thread.currentThread(), e);
 						}
-					});
-					input.close();
-					header.getOutputStream().close();
-					client.close();
-				} catch (IOException e) {
-					sneakyThrow(e);
+					}
 				}
-			});
+			};
+			th.setUncaughtExceptionHandler(handler);
+			th.setDaemon(true);
+			th.start();
 		}
 	}
 
